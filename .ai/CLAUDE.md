@@ -77,6 +77,58 @@ All training parameters are YAML/JSON config files. Argument parsing in `src/lla
 | `src/llamafactory/chat/` | Inference engines: `hf_engine`, `vllm_engine`, `sglang_engine`, `kt_engine` |
 | `src/llamafactory/extras/constants.py` | Enums and constants used across the project |
 
+### Adding a New Training Stage (e.g., GRPO/GSPO/DAPO)
+
+To add a new RL training method, follow this pattern:
+
+1. **Define stage in `FinetuningArguments`** (`src/llamafactory/hparams/finetuning_args.py`):
+   - Add to the `stage` Literal type: `Literal["pt", "sft", "rm", "ppo", "dpo", "kto", "grpo"]`
+   - Add new hyperparameters in a new dataclass (e.g., `GRPOArguments`) or extend `RLHFArguments`
+
+2. **Add routing in `tuner.py`** (`src/llamafactory/train/tuner.py`):
+   - Import your workflow module: `from .grpo import run_grpo`
+   - Add route: `elif finetuning_args.stage == "grpo": run_grpo(...)`
+
+3. **Create workflow module** (`src/llamafactory/train/grpo/workflow.py`):
+   - Follow `run_dpo()` pattern: load tokenizer, dataset, model, create trainer
+   - Return train_result and handle logging/metrics
+
+4. **Create trainer class** (`src/llamafactory/train/grpo/trainer.py`):
+   - Extend `CustomDPOTrainer` or `CustomPPOTrainer` depending on whether you need a reference model
+   - Key methods to override: `compute_loss()`, `get_batch_loss_metrics()`
+   - GRPO typically uses group-relative reward normalization (see `get_batch_logps` in `trainer_utils.py`)
+
+5. **Add data processor** (`src/llamafactory/data/processor/`):
+   - If using prompts only (no pairwise data), use `UnsupervisedDatasetProcessor`
+   - If using self-play/generation data, create a new processor following `PairwiseDatasetProcessor` pattern
+
+6. **Add data collator** (`src/llamafactory/data/collator.py`):
+   - Add `XXXDataCollatorWithPadding` following `PairwiseDataCollatorWithPadding` pattern
+
+7. **Add example YAML** (`examples/train_lora/llama3_lora_grpo.yaml`):
+   - Set `stage: grpo` and any new hyperparameters
+
+### Training Methods Architecture
+
+Each training stage follows an identical pattern:
+- `src/llamafactory/train/<stage>/workflow.py` — orchestrates data loading, model init, trainer creation
+- `src/llamafactory/train/<stage>/trainer.py` — implements the training logic (loss computation, metrics)
+- `src/llamafactory/data/processor/<stage>.py` — preprocesses dataset to model inputs
+
+Existing stages:
+- **pt** (Pretrain): `pretrain.py` + `UnsupervisedDatasetProcessor`
+- **sft** (Supervised Fine-tuning): `sft/trainer.py` + `SupervisedDatasetProcessor`
+- **rm** (Reward Modeling): `rm/trainer.py` + `PairwiseDatasetProcessor`
+- **dpo** (Direct Preference Optimization): `dpo/trainer.py` + `PairwiseDatasetProcessor` (uses chosen/rejected pairs)
+- **ppo** (Proximal Policy Optimization): `ppo/trainer.py` + reward model for scoring
+- **kto** (KTO): `kto/trainer.py` + `FeedbackDatasetProcessor`
+
+### Key Utilities for RL Training
+
+- `get_batch_logps()` in `trainer_utils.py`: Computes log probabilities from logits (used by DPO, GRPO)
+- `create_ref_model()` in `trainer_utils.py`: Creates reference model for KL regularization
+- `nested_detach()` in `trainer_utils.py`: Detaches tensors without losing structure
+
 ### Adding Support for a New Model
 
 1. Add a prompt template to `src/llamafactory/data/template.py` in the `TEMPLATES` dict
