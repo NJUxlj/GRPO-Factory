@@ -1,0 +1,50 @@
+### model
+model_name_or_path: Qwen/Qwen3-4B-Instruct
+
+### method
+stage: grpo
+do_train: true
+finetuning_type: lora
+lora_rank: 8
+lora_target: all
+
+### DAPO algorithm settings
+grpo_loss_mode: dapo
+grpo_num_generations: 16
+grpo_max_response_length: 4096
+dapo_clip_ratio_low: 0.2
+dapo_clip_ratio_high: 0.28
+dapo_dynamic_sampling: true
+dapo_filter_metric: acc
+dapo_max_gen_batches: 10
+dapo_overlong_shaping: true
+dapo_overlong_buffer_len: 256
+dapo_overlong_penalty_factor: 1.0
+grpo_use_kl_loss: true
+grpo_kl_coef: 0.001
+grpo_kl_type: kl
+
+### reward
+grpo_reward_type: math
+grpo_reward_math_extract_mode: boxed
+
+### dataset
+dataset: grpo_math_demo
+template: qwen3
+cutoff_len: 2048
+
+### training
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-5
+num_train_epochs: 1
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+
+### output
+output_dir: saves/qwen3-4b/lora/dapo
+logging_steps: 5
+save_steps: 100
+plot_loss: true

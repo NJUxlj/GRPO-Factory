@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+'''
+此脚本的作用是测试 Qwen2.5-VL 在 SFT 全量微调 场景下的训练吞吐量和性能表现。
+
+'''
+
 import os
 from dataclasses import dataclass
 from typing import Any
@@ -30,6 +35,13 @@ from llamafactory.train.sft.trainer import CustomSeq2SeqTrainer
 
 
 class DummyDataset(Dataset):
+    '''
+    虚拟数据集（DummyDataset）：
+    
+    - 不加载真实数据，而是随机生成 input_ids、pixel_values（图像）、pixel_values_videos（视频）等，模拟图文视频混合输入。
+    - 数据集大小默认 100000 条，序列长度默认 2048。
+
+    '''
     def __init__(self, size: int = 1000, seq_length: int = 1024, processor: Qwen2_5_VLProcessor = None):
         self.size = size
         self.seq_length = seq_length
@@ -77,6 +89,10 @@ class DummyDataset(Dataset):
 
 @dataclass
 class MultiModalDataCollatorForSeq2Seq(DataCollatorForSeq2Seq):
+    '''
+    作用：
+    将图像/视频的 pixel_values 和 grid_thw 正确拼成 batch，并计算 Qwen2VL 所需的 3D position_ids（mrope）
+    '''
     def __post_init__(self):
         if isinstance(self.model, PeftModel):
             self.model = self.model.base_model.model

@@ -1,0 +1,71 @@
+### model
+model_name_or_path: Qwen/Qwen3-4B-Instruct
+
+### method
+stage: grpo
+do_train: true
+finetuning_type: lora
+lora_rank: 8
+lora_target: all
+
+### DCPO algorithm settings
+grpo_loss_mode: dcpo
+
+### Rollout (same G=16 as DAPO)
+grpo_num_generations: 16
+grpo_temperature: 1.0
+grpo_top_p: 1.0
+grpo_top_k: -1
+grpo_max_response_length: 4096
+
+### DCPO three core technologies
+# 1) DAC: tighter asymmetric clip range
+dcpo_clip_ratio_low: 0.16
+dcpo_clip_ratio_high: 0.20
+dcpo_dual_clip_ratio: 10.0
+dcpo_clip_schedule: constant
+
+# 2) SAS: smooth advantage standardization
+dcpo_sas_enable: true
+dcpo_sas_threshold: 3.0
+
+# 3) OTM Loss
+dcpo_loss_agg_mode: otm
+
+### KL loss
+grpo_use_kl_loss: true
+grpo_kl_coef: 0.001
+grpo_kl_type: kl
+grpo_norm_adv_by_std: true
+
+### DAPO features (compatible with DCPO)
+dapo_dynamic_sampling: true
+dapo_filter_metric: acc
+dapo_overlong_shaping: true
+dapo_overlong_buffer_len: 256
+dapo_overlong_penalty_factor: 1.0
+
+### reward
+grpo_reward_type: math
+grpo_reward_math_extract_mode: boxed
+
+### dataset
+dataset: grpo_math_demo
+template: qwen3
+cutoff_len: 2048
+
+### training
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-5
+num_train_epochs: 1
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+
+### output
+output_dir: saves/qwen3-4b/lora/dcpo
+logging_steps: 5
+save_steps: 100
+plot_loss: true

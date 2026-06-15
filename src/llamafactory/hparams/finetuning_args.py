@@ -441,7 +441,240 @@ class SwanLabArguments:
 
 
 @dataclass
+class GRPOArguments:
+    r"""Arguments pertaining to GRPO/DAPO/GSPO/DCPO training."""
+
+    # === Shared GRPO parameters ===
+    grpo_loss_mode: Literal["grpo", "dapo", "gspo", "dcpo"] = field(
+        default="grpo",
+        metadata={"help": "Which GRPO-family algorithm to use. Affects loss computation and training logic."},
+    )
+    grpo_num_generations: int = field(
+        default=8,
+        metadata={"help": "Number of responses to generate per prompt during rollout (G in GRPO paper)."},
+    )
+    grpo_temperature: float = field(
+        default=1.0,
+        metadata={"help": "Temperature for response generation during rollout."},
+    )
+    grpo_top_p: float = field(
+        default=1.0,
+        metadata={"help": "Top-p (nucleus) sampling parameter for rollout."},
+    )
+    grpo_top_k: int = field(
+        default=-1,
+        metadata={"help": "Top-k sampling parameter for rollout (-1 = disabled)."},
+    )
+    grpo_max_response_length: int = field(
+        default=2048,
+        metadata={"help": "Maximum number of tokens to generate per response."},
+    )
+    grpo_ppo_epochs: int = field(
+        default=1,
+        metadata={"help": "Number of PPO epochs per batch of rollouts."},
+    )
+    grpo_mini_batch_size: int = field(
+        default=8,
+        metadata={"help": "Mini-batch size for PPO updates within a rollout batch."},
+    )
+    grpo_grad_clip: float = field(
+        default=1.0,
+        metadata={"help": "Gradient clipping value for GRPO training."},
+    )
+    grpo_use_kl_loss: bool = field(
+        default=True,
+        metadata={"help": "Whether to add KL divergence penalty to the loss."},
+    )
+    grpo_kl_coef: float = field(
+        default=0.001,
+        metadata={"help": "Coefficient for KL divergence penalty (higher for GSPO, ~0.1)."},
+    )
+    grpo_kl_type: Literal["kl", "abs", "mse", "low_var_kl", "full"] = field(
+        default="kl",
+        metadata={"help": "Type of KL divergence estimator to use."},
+    )
+    grpo_entropy_coeff: float = field(
+        default=0.0,
+        metadata={"help": "Entropy bonus coefficient (0 = disabled)."},
+    )
+    grpo_norm_adv_by_std: bool = field(
+        default=True,
+        metadata={"help": "Whether to normalize advantages by group standard deviation."},
+    )
+
+    # === GRPO-specific parameters ===
+    grpo_clip_ratio: float = field(
+        default=0.2,
+        metadata={"help": "Symmetric clip ratio for GRPO policy loss (ε)."},
+    )
+    grpo_loss_agg_mode: Literal["token-mean", "seq-mean-token-sum", "seq-mean-token-mean"] = field(
+        default="seq-mean-token-mean",
+        metadata={"help": "Loss aggregation mode for GRPO."},
+    )
+
+    # === DAPO-specific parameters ===
+    dapo_clip_ratio_low: float = field(
+        default=0.2,
+        metadata={"help": "DAPO asymmetric clip lower bound (ε_low)."},
+    )
+    dapo_clip_ratio_high: float = field(
+        default=0.28,
+        metadata={"help": "DAPO asymmetric clip upper bound (ε_high)."},
+    )
+    dapo_dynamic_sampling: bool = field(
+        default=True,
+        metadata={"help": "Whether to filter trivial (all-0 or all-1) groups."},
+    )
+    dapo_filter_metric: Literal["acc", "score", "seq_reward"] = field(
+        default="acc",
+        metadata={"help": "Metric used for filtering trivial groups."},
+    )
+    dapo_max_gen_batches: int = field(
+        default=10,
+        metadata={"help": "Maximum retry batches for dynamic sampling."},
+    )
+    dapo_overlong_shaping: bool = field(
+        default=True,
+        metadata={"help": "Whether to apply overlong reward penalty."},
+    )
+    dapo_overlong_buffer_len: int = field(
+        default=256,
+        metadata={"help": "Buffer length before max_response_length where penalty begins."},
+    )
+    dapo_overlong_penalty_factor: float = field(
+        default=1.0,
+        metadata={"help": "Strength of overlong penalty (higher = stronger penalty)."},
+    )
+
+    # === GSPO-specific parameters ===
+    gspo_clip_ratio_c: float = field(
+        default=3.0,
+        metadata={"help": "GSPO secondary clip bound for loss (c parameter)."},
+    )
+    gspo_use_megatron: bool = field(
+        default=False,
+        metadata={"help": "Whether to use Megatron distributed strategy (reserved for future)."},
+    )
+
+    # === DCPO-specific parameters (DAPO's further improvement) ===
+    # 1) DAC (Dynamic-Adaptive Clipping)
+    dcpo_clip_ratio_low: float = field(
+        default=0.16,
+        metadata={"help": "DCPO DAC lower clip bound ε_low (tighter than DAPO's 0.2)."},
+    )
+    dcpo_clip_ratio_high: float = field(
+        default=0.20,
+        metadata={"help": "DCPO DAC upper clip bound ε_high (tighter than DAPO's 0.28)."},
+    )
+    dcpo_dual_clip_ratio: float = field(
+        default=10.0,
+        metadata={"help": "DCPO Dual Clip upper bound r_max (paper: r_max=10)."},
+    )
+
+    # 2) SAS (Smooth Advantage Standardization)
+    dcpo_sas_enable: bool = field(
+        default=True,
+        metadata={"help": "Whether to use SAS tanh smoothing for advantages."},
+    )
+    dcpo_sas_threshold: float = field(
+        default=3.0,
+        metadata={"help": "SAS clipping threshold k (paper uses k=3)."},
+    )
+
+    # 3) OTM Loss
+    dcpo_loss_agg_mode: Literal["otm", "token-mean", "seq-mean-token-mean"] = field(
+        default="otm",
+        metadata={"help": "Loss aggregation mode for DCPO."},
+    )
+
+    # Optional: DAC scheduler
+    dcpo_clip_schedule: Literal["constant", "linear_decay"] = field(
+        default="constant",
+        metadata={"help": "DAC clip ratio schedule (constant or linear_decay)."},
+    )
+
+    # === RewardManager parameters ===
+    grpo_reward_type: Literal["math", "multiple_choice", "string_match", "llm_judge"] = field(
+        default="math",
+        metadata={"help": "Type of reward scoring function to use."},
+    )
+    grpo_reward_score_mode: Literal["binary"] = field(
+        default="binary",
+        metadata={"help": "Score mode for reward functions."},
+    )
+
+    # Math scoring
+    grpo_reward_math_extract_mode: Literal["boxed", "hash", "last_number"] = field(
+        default="boxed",
+        metadata={"help": "Answer extraction mode for math scoring."},
+    )
+
+    # Multiple choice scoring
+    grpo_reward_mc_pattern: str = field(
+        default=r"(?i)\\boxed\{\s*([A-D])\s*\}|answer\s*[:：]?\s*([A-D])",
+        metadata={"help": "Regex pattern for multiple choice answer extraction."},
+    )
+
+    # String match scoring
+    grpo_reward_strict_match: bool = field(
+        default=False,
+        metadata={"help": "If True, only collapse whitespace; if False, also strip punctuation and lowercase."},
+    )
+
+    # LLM-as-Judge scoring
+    grpo_llm_judge_url: str = field(
+        default="",
+        metadata={"help": "API URL for LLM-as-Judge (OpenAI-compatible endpoint)."},
+    )
+    grpo_llm_judge_model: str = field(
+        default="",
+        metadata={"help": "Model name for LLM-as-Judge."},
+    )
+    grpo_llm_judge_max_tokens: int = field(
+        default=256,
+        metadata={"help": "Max tokens for judge response."},
+    )
+    grpo_llm_judge_temperature: float = field(
+        default=0.0,
+        metadata={"help": "Temperature for judge model (0.0 = deterministic)."},
+    )
+    grpo_llm_judge_timeout: int = field(
+        default=30,
+        metadata={"help": "Request timeout in seconds for LLM judge."},
+    )
+    grpo_llm_judge_concurrency: int = field(
+        default=16,
+        metadata={"help": "Maximum concurrent requests to LLM judge API."},
+    )
+    grpo_llm_judge_fallback_score: float = field(
+        default=0.0,
+        metadata={"help": "Fallback score when LLM judge API call fails."},
+    )
+
+    # Rule-based reward
+    grpo_use_rule_based_reward: bool = field(
+        default=False,
+        metadata={"help": "Whether to combine rule-based reward with main scoring."},
+    )
+    grpo_rule_based_weight: float = field(
+        default=0.3,
+        metadata={"help": "Weight of rule-based reward when combining with main score."},
+    )
+
+    # DCPO hybrid mode (M06 advanced)
+    dcpo_hybrid_mode: Literal["token-first", "seq-first"] = field(
+        default="token-first",
+        metadata={"help": "DCPO hybrid mode for combining token-level and sequence-level clipping."},
+    )
+    dcpo_hybrid_enable: bool = field(
+        default=False,
+        metadata={"help": "Whether to use DCPO hybrid mode (DAC + GSPO clip_c)."},
+    )
+
+
+@dataclass
 class FinetuningArguments(
+    GRPOArguments,
     SwanLabArguments,
     BAdamArgument,
     ApolloArguments,
@@ -457,7 +690,7 @@ class FinetuningArguments(
         default=False,
         metadata={"help": "Whether or not to train model in purely bf16 precision (without AMP)."},
     )
-    stage: Literal["pt", "sft", "rm", "ppo", "dpo", "kto"] = field(
+    stage: Literal["pt", "sft", "rm", "ppo", "dpo", "kto", "grpo"] = field(
         default="sft",
         metadata={"help": "Which stage will be performed in training."},
     )
@@ -585,6 +818,14 @@ class FinetuningArguments(
 
         if self.stage == "ppo" and self.reward_model_type == "oft" and self.finetuning_type != "oft":
             raise ValueError("`reward_model_type` cannot be oft for Freeze/Full PPO training.")
+
+        if self.stage == "grpo":
+            if self.grpo_num_generations < 2:
+                raise ValueError("`grpo_num_generations` must be at least 2 for group-relative advantage.")
+            if self.grpo_reward_type == "llm_judge" and not self.grpo_llm_judge_url:
+                raise ValueError("`grpo_llm_judge_url` must be set when grpo_reward_type='llm_judge'.")
+            if self.grpo_loss_mode not in ("grpo", "dapo", "gspo", "dcpo"):
+                raise ValueError(f"Unknown grpo_loss_mode: {self.grpo_loss_mode}.")
 
         if self.stage == "dpo" and self.pref_loss != "sigmoid" and self.dpo_label_smoothing > 1e-6:
             raise ValueError("`dpo_label_smoothing` is only valid for sigmoid loss function.")

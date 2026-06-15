@@ -34,6 +34,7 @@ from ..hparams import RayArguments, get_infer_args, get_ray_args, get_train_args
 from ..model import load_model, load_tokenizer
 from .callbacks import LogCallback, PissaConvertCallback, ReporterCallback
 from .dpo import run_dpo
+from .grpo import run_grpo
 from .kto import run_kto
 from .ppo import run_ppo
 from .pt import run_pt
@@ -113,6 +114,8 @@ def _training_function(config: dict[str, Any]) -> None:
         run_dpo(model_args, data_args, training_args, finetuning_args, callbacks)
     elif finetuning_args.stage == "kto":
         run_kto(model_args, data_args, training_args, finetuning_args, callbacks)
+    elif finetuning_args.stage == "grpo":
+        run_grpo(model_args, data_args, training_args, finetuning_args, generating_args, callbacks)
     else:
         raise ValueError(f"Unknown task: {finetuning_args.stage}.")
 
