@@ -74,10 +74,29 @@ def greedy_knapsack(numbers: list[int], capacity: int) -> list[list[int]]:
 
 
 def infer_seqlen(source_len: int, target_len: int, cutoff_len: int) -> tuple[int, int]:
-    r"""Compute the real sequence length after truncation by the cutoff_len."""
+    r"""Compute the real sequence length after truncation by the cutoff_len.
+    
+    infer_seqlen 在 source（prompt）+ target（response/labels） 总长度超过 cutoff_len 时，计算截断后各自应保留的 token 数。
+
+    Args:
+        source_len: prompt / 输入侧 token 数
+        target_len: response / 标签侧 token 数
+        cutoff_len: 单条样本允许的最大总长度
+
+    Returns:
+        new_source_len: 截断后输入侧 token 数
+        new_target_len: 截断后标签侧 token 数
+    """
     if target_len * 2 < cutoff_len:  # truncate source
+        '''
+        target很短，即使 target 全保留，预算仍很宽裕，主要截 source。
+        max_target_len = cutoff_len 表示 target 理论上最多可占满 cutoff_len（后面会用 min(..., target_len) 封顶，不会超出真实长度）。
+        '''
         max_target_len = cutoff_len
     elif source_len * 2 < cutoff_len:  # truncate target
+        '''
+        source 很短，可基本全留，主要截 target。
+        '''
         max_target_len = cutoff_len - source_len
     else:  # truncate both
         max_target_len = int(cutoff_len * (target_len / (source_len + target_len)))

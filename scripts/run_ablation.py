@@ -129,8 +129,8 @@ def main():
         },
         "dcpo_sas_only": {
             "grpo_loss_mode": "dcpo",
-            "dapo_clip_ratio_low": "0.2",
-            "dapo_clip_ratio_high": "0.28",
+            "dcpo_clip_ratio_low": "0.2",
+            "dcpo_clip_ratio_high": "0.28",
             "dcpo_sas_enable": "true",
             "dcpo_sas_threshold": "3.0",
             "dcpo_loss_agg_mode": "token-mean",
@@ -138,8 +138,8 @@ def main():
         },
         "dcpo_otm_only": {
             "grpo_loss_mode": "dcpo",
-            "dapo_clip_ratio_low": "0.2",
-            "dapo_clip_ratio_high": "0.28",
+            "dcpo_clip_ratio_low": "0.2",
+            "dcpo_clip_ratio_high": "0.28",
             "dcpo_sas_enable": "false",
             "dcpo_loss_agg_mode": "otm",
             "output_dir": "saves/ablation/dcpo_otm_only",

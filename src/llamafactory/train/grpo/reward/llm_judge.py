@@ -66,6 +66,7 @@ class LLMJudgeClient:
         self,
         url: str,
         model: str,
+        api_key: str = "",
         max_tokens: int = 256,
         temperature: float = 0.0,
         timeout: int = 30,
@@ -78,6 +79,7 @@ class LLMJudgeClient:
         Args:
             url: API endpoint URL (OpenAI-compatible).
             model: Model name to use for judging.
+            api_key: Optional bearer token for authenticated endpoints.
             max_tokens: Maximum tokens in judge response.
             temperature: Sampling temperature (0.0 for deterministic).
             timeout: Request timeout in seconds.
@@ -85,14 +87,23 @@ class LLMJudgeClient:
             fallback_score: Score to use when API call fails.
             prompt_template: Prompt template for the judge.
         """
-        self.url = url
+        self.url = self._normalize_url(url)
         self.model = model
+        self.api_key = api_key
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.timeout = timeout
         self.semaphore = asyncio.Semaphore(concurrency)
         self.fallback_score = fallback_score
         self.prompt_template = prompt_template
+
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        """Accept either a base /v1 URL or a full chat completions endpoint."""
+        normalized = url.rstrip("/")
+        if normalized.endswith("/chat/completions"):
+            return normalized
+        return f"{normalized}/chat/completions"
 
     async def _judge_one(
         self, session, prediction: str, ground_truth: str
@@ -117,10 +128,11 @@ class LLMJudgeClient:
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
         }
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None
         try:
             async with self.semaphore:
                 async with session.post(
-                    self.url, json=payload, timeout=self.timeout
+                    self.url, json=payload, headers=headers, timeout=self.timeout
                 ) as resp:
                     data = await resp.json()
             content = (
@@ -186,4 +198,4 @@ def llm_judge_score(
     """
     if judge_client is None:
         raise ValueError("llm_judge_score requires a judge_client instance.")
-    return judge_client.judge_batch([response], [ground_truth])[0]
+    return asyncio.run(judge_client.judge_batch([response], [ground_truth]))[0]

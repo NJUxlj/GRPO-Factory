@@ -72,6 +72,7 @@ class RewardManager:
             self.judge_client = LLMJudgeClient(
                 url=finetuning_args.grpo_llm_judge_url,
                 model=finetuning_args.grpo_llm_judge_model,
+                api_key=finetuning_args.grpo_llm_judge_api_key,
                 max_tokens=finetuning_args.grpo_llm_judge_max_tokens,
                 temperature=finetuning_args.grpo_llm_judge_temperature,
                 timeout=finetuning_args.grpo_llm_judge_timeout,
@@ -128,6 +129,28 @@ class RewardManager:
         else:
             return self.score_fn(response, ground_truth)
 
+    def _score_rule_based(self, item: RewardInput) -> float:
+        """Lightweight rule-based reward for format and non-empty completion.
+
+        This optional score is intentionally generic so it can be combined with
+        any main reward type without depending on task-specific code.
+        """
+        response = item.response.strip()
+        if not response:
+            return 0.0
+
+        score = 0.5
+        if self.reward_type == "math":
+            if "\\boxed{" in response or "####" in response:
+                score += 0.5
+        elif self.reward_type == "multiple_choice":
+            if any(choice in response.upper() for choice in ("A", "B", "C", "D")):
+                score += 0.5
+        else:
+            score += 0.5
+
+        return min(score, 1.0)
+
     def __call__(self, inputs: List[RewardInput]) -> torch.Tensor:
         """Batch scoring entry point.
 
@@ -144,6 +167,14 @@ class RewardManager:
         else:
             scores = [
                 self._score_one(x.response, x.ground_truth) for x in inputs
+            ]
+
+        if self.use_rule_based:
+            rule_scores = [self._score_rule_based(x) for x in inputs]
+            main_weight = 1.0 - self.rule_based_weight
+            scores = [
+                main_weight * main_score + self.rule_based_weight * rule_score
+                for main_score, rule_score in zip(scores, rule_scores)
             ]
 
         return torch.tensor(scores, dtype=torch.float32)

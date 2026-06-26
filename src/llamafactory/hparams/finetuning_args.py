@@ -630,6 +630,10 @@ class GRPOArguments:
         default="",
         metadata={"help": "Model name for LLM-as-Judge."},
     )
+    grpo_llm_judge_api_key: str = field(
+        default="",
+        metadata={"help": "API key for LLM-as-Judge. Leave empty for local endpoints without authentication."},
+    )
     grpo_llm_judge_max_tokens: int = field(
         default=256,
         metadata={"help": "Max tokens for judge response."},
@@ -824,6 +828,8 @@ class FinetuningArguments(
                 raise ValueError("`grpo_num_generations` must be at least 2 for group-relative advantage.")
             if self.grpo_reward_type == "llm_judge" and not self.grpo_llm_judge_url:
                 raise ValueError("`grpo_llm_judge_url` must be set when grpo_reward_type='llm_judge'.")
+            if self.grpo_reward_type == "llm_judge" and not self.grpo_llm_judge_model:
+                raise ValueError("`grpo_llm_judge_model` must be set when grpo_reward_type='llm_judge'.")
             if self.grpo_loss_mode not in ("grpo", "dapo", "gspo", "dcpo"):
                 raise ValueError(f"Unknown grpo_loss_mode: {self.grpo_loss_mode}.")
 

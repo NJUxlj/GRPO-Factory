@@ -90,7 +90,8 @@ llamafactory-cli train examples/train_lora/qwen3_lora_grpo.yaml \
 llamafactory-cli train examples/train_lora/qwen3_lora_dcpo.yaml \
     grpo_reward_type=llm_judge \
     grpo_llm_judge_url=http://localhost:8000/v1 \
-    grpo_llm_judge_model=Qwen3-4B-Instruct
+    grpo_llm_judge_model=Qwen3-4B-Instruct \
+    grpo_llm_judge_api_key=EMPTY
 ```
 
 ### 4. 多 GPU 分布式训练
@@ -143,8 +144,9 @@ CUDA_VISIBLE_DEVICES=0,1 llamafactory-cli train examples/train_lora/qwen3_lora_d
 | `grpo_reward_type` | 评分器类型 | `math` / `multiple_choice` / `string_match` / `llm_judge` |
 | `grpo_reward_math_extract_mode` | 数学答案提取模式 | `boxed` / `hash` / `last_number` |
 | `grpo_reward_string_strict` | 字符串是否严格匹配 | `true` / `false` |
-| `grpo_llm_judge_url` | LLM 裁判 API 地址 | 如 `http://localhost:8000/v1` |
+| `grpo_llm_judge_url` | LLM 裁判 API 地址，支持 `/v1` 或完整 `/v1/chat/completions` | 如 `http://localhost:8000/v1` |
 | `grpo_llm_judge_model` | LLM 裁判模型名 | 如 `Qwen3-4B-Instruct` |
+| `grpo_llm_judge_api_key` | LLM 裁判 API Key，本地无鉴权服务可留空 | 如 `EMPTY` 或真实 token |
 
 ### DAPO 专属参数
 

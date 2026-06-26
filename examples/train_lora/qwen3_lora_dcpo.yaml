@@ -48,6 +48,14 @@ dapo_overlong_penalty_factor: 1.0
 ### reward
 grpo_reward_type: math
 grpo_reward_math_extract_mode: boxed
+# To use an OpenAI-compatible LLM-as-Judge endpoint, switch the reward type and set:
+# grpo_reward_type: llm_judge
+# grpo_llm_judge_url: http://localhost:8000/v1
+# grpo_llm_judge_model: Qwen3-4B-Instruct
+# grpo_llm_judge_api_key: ""
+# grpo_llm_judge_timeout: 30
+# grpo_llm_judge_concurrency: 16
+# grpo_llm_judge_fallback_score: 0.0
 
 ### dataset
 dataset: grpo_math_demo

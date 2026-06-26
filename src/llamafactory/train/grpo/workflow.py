@@ -16,7 +16,7 @@
 
 from typing import TYPE_CHECKING, Optional
 
-from ...data import get_dataset, get_template_and_fix_tokenizer
+from ...data import MultiModalDataCollatorForSeq2Seq, get_dataset, get_template_and_fix_tokenizer
 from ...extras.ploting import plot_loss
 from ...model import load_model, load_tokenizer
 from ..trainer_utils import create_ref_model
@@ -28,6 +28,19 @@ if TYPE_CHECKING:
     from transformers import Seq2SeqTrainingArguments, TrainerCallback
 
     from ...hparams import DataArguments, FinetuningArguments, GeneratingArguments, ModelArguments
+
+
+class GRPODataCollatorWithPadding:
+    """Pad model inputs while keeping string ground-truth answers for rewards."""
+
+    def __init__(self, base_collator: MultiModalDataCollatorForSeq2Seq):
+        self.base_collator = base_collator
+
+    def __call__(self, features):
+        ground_truths = [feature.pop("ground_truth", "") for feature in features]
+        batch = self.base_collator(features)
+        batch["ground_truth"] = ground_truths
+        return batch
 
 
 def create_reward_manager(finetuning_args: "FinetuningArguments") -> RewardManager:
@@ -73,6 +86,9 @@ def run_grpo(
     model = load_model(tokenizer, model_args, finetuning_args, training_args.do_train)
 
     tokenizer.padding_side = "left"  # left-padding for generation
+    data_collator = GRPODataCollatorWithPadding(
+        MultiModalDataCollatorForSeq2Seq(template=template, model=model, **tokenizer_module)
+    )
 
     # Create reference model (frozen copy of the initial policy)
     ref_model = create_ref_model(model_args, finetuning_args)
@@ -87,7 +103,7 @@ def run_grpo(
         finetuning_args=finetuning_args,
         model=model,
         args=training_args,
-        data_collator=dataset_module.get("data_collator"),
+        data_collator=data_collator,
         train_dataset=dataset_module.get("train_dataset"),
         eval_dataset=dataset_module.get("eval_dataset"),
         tokenizer=tokenizer,
